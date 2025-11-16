@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Business Admin — Final</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg: #f6f8fb; --card: #ffffff; --muted:#6b7280; --accent:#2563eb; --danger:#ef4444;
+      --glass: rgba(255,255,255,0.6);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#0f172a}
+    /* topbar */
+    header.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:#fff;box-shadow:0 6px 20px rgba(2,6,23,0.06);position:sticky;top:0;z-index:50}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:grid;place-items:center;color:#fff;font-weight:800}
+    .top-actions{display:flex;gap:10px;align-items:center}
+    .search input{padding:8px 10px;border-radius:8px;border:1px solid #e6e9ef;width:280px}
+
+    /* layout */
+    .layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 64px)}
+    aside.sidebar{padding:18px;background:linear-gradient(180deg,var(--accent),#0ea5e9);color:#fff;height:calc(100vh - 64px);position:sticky;top:64px;overflow:auto}
+    aside.sidebar h2{margin:0;font-size:18px;text-align:center}
+    nav.nav{margin-top:18px;display:flex;flex-direction:column;gap:6px}
+    nav.nav a{padding:10px 12px;border-radius:8px;color:rgba(255,255,255,0.95);text-decoration:none;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+    nav.nav a:hover, nav.nav a.active{background:rgba(255,255,255,0.12)}
+    main.container{padding:22px;max-width:1300px;margin:auto}
+
+    /* cards & tables */
+    .card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.06);margin-bottom:18px}
+    h3{margin:0 0 12px 0}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"], input[type="number"], input[type="date"], select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ef;background:white;font-size:14px}
+    .btn{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+    .btn.secondary{background:transparent;color:var(--accent);border:1px solid rgba(37,99,235,0.12)}
+    .btn.danger{background:var(--danger)}
+    .flex{display:flex;gap:12px;align-items:center}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{padding:10px;border-bottom:1px solid #eef2ff;text-align:left}
+    th{color:var(--muted);font-weight:700}
+    tr:hover td{background:linear-gradient(90deg,rgba(37,99,235,0.03),transparent)}
+
+    /* toast */
+    .toast{position:fixed;right:20px;bottom:20px;background:#0f172a;color:#fff;padding:12px 16px;border-radius:12px;display:none;z-index:999}
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;z-index:200}
+    .modal{width:100%;max-width:700px;background:var(--card);padding:18px;border-radius:12px;box-shadow:0 18px 60px rgba(2,6,23,0.4)}
+    .modal .row{display:flex;gap:12px;margin-bottom:8px}
+    .modal label{margin-bottom:6px}
+
+    /* responsive */
+    @media(max-width:1000px){ .layout{grid-template-columns:1fr} aside.sidebar{display:none} .search input{width:120px} }
+
+    /* dark */
+    .dark{background:#0b1220;color:#e6eef8}
+    .dark .card{background:#0f1724;color:#e6eef8}
+    .dark input, .dark select{background:#0b1220;border:1px solid #1f2937;color:#e6eef8}
+    .small{font-size:13px;color:var(--muted)}
+    .kpi{font-size:20px;font-weight:800}
+    .empty{padding:16px;text-align:center;color:var(--muted)}
+    .badge{padding:6px 10px;border-radius:8px;background:#eef2ff;color:var(--accent);font-weight:700}
+  </style>
+</head>
+<body>
+
+  <header class="topbar" role="banner">
+    <div class="brand">
+      <div class="logo">AK</div>
+      <div>
+        <div style="font-weight:800">Business Admin</div>
+        <div style="font-size:12px;color:#6b7280">Manage products, sales & customers</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <div class="search">
+        <input id="globalSearch" type="text" placeholder="Search products, customers, sales..." aria-label="Global search">
+      </div>
+      <button class="btn secondary" onclick="performGlobalSearch()">Search</button>
+      <button class="btn secondary" id="toggleDarkBtn">Dark</button>
+      <div id="userChip" class="badge">Guest</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" role="navigation" id="sidebar">
+      <h2 id="userWelcome">Welcome</h2>
+      <div style="font-size:13px;opacity:0.9;margin-bottom:8px" id="userRole">Not logged</div>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#" class="active" data-tab="dashboard" onclick="showTab(event,'dashboard')">Dashboard</a>
+        <a href="#" data-tab="products" onclick="showTab(event,'products')">Products</a>
+        <a href="#" data-tab="sales" onclick="showTab(event,'sales')">Sales</a>
+        <a href="#" data-tab="customers" onclick="showTab(event,'customers')">Customers</a>
+        <a href="#" data-tab="invoices" onclick="showTab(event,'invoices')">Invoices</a>
+        <a href="#" data-tab="reports" onclick="showTab(event,'reports')">Reports</a>
+        <a href="#" data-tab="settings" onclick="showTab(event,'settings')">Settings</a>
+        <a href="#" style="margin-top:12px;color:#fff" onclick="logout()">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="container" id="main">
+      <!-- LOGIN -->
+      <section id="loginSection" class="card">
+        <h3>Login / Register</h3>
+        <div style="max-width:560px">
+          <label>Username</label>
+          <input id="username" type="text" placeholder="username (e.g., admin)">
+          <label style="margin-top:8px">Role</label>
+          <select id="roleSelect">
+            <option value="" disabled selected>Select role</option>
+            <option value="Admin">Admin</option>
+            <option value="Manager">Manager</option>
+            <option value="Staff">Staff</option>
+          </select>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn" onclick="registerUser()">Register</button>
+            <button class="btn secondary" onclick="loginUser()">Login</button>
+            <button class="btn secondary" onclick="seedDemo()">Seed Demo</button>
+          </div>
+          <div class="small" style="margin-top:8px">Tip: use <strong>admin</strong> as username to see Admin features after seeding demo.</div>
+        </div>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="card" style="display:none">
+        <h3>Overview</h3>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="card" style="flex:1;min-width:200px">
+            <div class="small">Total Sales</div>
+            <div class="kpi" id="totalSales">$0.00</div>
+          </div>
+          <div class="card" style="flex:1;min-width:200px">
+            <div class="small">Customers</div>
+            <div class="kpi" id="totalCustomers">0</div>
+          </div>
+          <div class="card" style="flex:1;min-width:200px">
+            <div class="small">Products in Stock</div>
+            <div class="kpi" id="totalProducts">0</div>
+          </div>
+          <div class="card" style="flex:1;min-width:200px">
+            <div class="small">Profit</div>
+            <div class="kpi" id="totalProfit">$0.00</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap">
+          <div class="card" style="flex:1;min-width:360px">
+            <h4>Low Stock</h4>
+            <ul id="lowStock" class="small"></ul>
+          </div>
+          <div class="card" style="flex:1;min-width:260px">
+            <h4>Quick AI Insights</h4>
+            <div id="aiBox" class="small">Run reports to get insights.</div>
+            <div style="margin-top:8px"><button class="btn" onclick="generateInsights()">Run Insights</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRODUCTS -->
+      <section id="products" class="card" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Products</h3>
+          <div class="flex">
+            <input id="productSearch" type="text" placeholder="Search products..." oninput="renderProducts()">
+            <button class="btn" onclick="openModal('productAdd')">+ Add Product</button>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <table>
+            <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Category</th><th>Actions</th></tr></thead>
+            <tbody id="productsTable"></tbody>
+          </table>
+          <div id="productsEmpty" class="empty" style="display:none">No products yet.</div>
+        </div>
+      </section>
+
+      <!-- SALES -->
+      <section id="sales" class="card" style="display:none">
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+          <div style="min-width:260px">
+            <h3>Record Sale</h3>
+            <label>Product</label>
+            <select id="saleProduct"></select>
+            <label>Quantity</label>
+            <input id="saleQty" type="number" min="1" value="1">
+            <label>Customer</label>
+            <select id="saleCustomer"></select>
+            <label>Date</label>
+            <input id="saleDate" type="date" value="">
+            <div style="margin-top:8px">
+              <button class="btn" onclick="recordSale()">Record Sale</button>
+              <button class="btn secondary" onclick="openModal('productAdd')">Quick add product</button>
+            </div>
+          </div>
+
+          <div style="flex:1;min-width:320px">
+            <h3>Sales History</h3>
+            <input id="saleSearch" type="text" placeholder="Search sales..." oninput="renderSales()">
+            <table style="margin-top:8px">
+              <thead><tr><th>Product</th><th>Qty</th><th>Customer</th><th>Total</th><th>Date</th><th>Action</th></tr></thead>
+              <tbody id="salesTable"></tbody>
+            </table>
+            <div id="salesEmpty" class="empty" style="display:none">No sales yet.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CUSTOMERS -->
+      <section id="customers" class="card" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Customers</h3>
+          <div class="flex">
+            <input id="customerSearch" type="text" placeholder="Search customers..." oninput="renderCustomers()">
+            <button class="btn" onclick="openModal('customerAdd')">+ Add Customer</button>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <table>
+            <thead><tr><th>Name</th><th>Contact</th><th>Type</th><th>Action</th></tr></thead>
+            <tbody id="customersTable"></tbody>
+          </table>
+          <div id="customersEmpty" class="empty" style="display:none">No customers yet.</div>
+        </div>
+      </section>
+
+      <!-- INVOICES -->
+      <section id="invoices" class="card" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Invoices</h3>
+          <div class="flex">
+            <button class="btn" onclick="openModal('invoiceCreate')">Create Invoice</button>
+            <button class="btn secondary" onclick="printAllInvoices()">Print All</button>
+            <button class="btn secondary" onclick="exportData()">Export JSON</button>
+            <button class="btn secondary" onclick="importData()">Import JSON</button>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <table>
+            <thead><tr><th>Customer</th><th>Items</th><th>Total</th><th>Date</th></tr></thead>
+            <tbody id="invoicesTable"></tbody>
+          </table>
+          <div id="invoicesEmpty" class="empty" style="display:none">No invoices yet.</div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section id="reports" class="card" style="display:none">
+        <h3>Reports</h3>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:360px">
+            <canvas id="stockChart"></canvas>
+          </div>
+          <div style="width:360px">
+            <canvas id="salesChart"></canvas>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn" onclick="updateCharts()">Refresh Charts</button>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settings" class="card" style="display:none">
+        <h3>Settings</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="clearAll()">Clear All Data</button>
+          <button class="btn secondary" onclick="seedDemo()">Seed Demo Data</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL BACKDROP -->
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div id="modalBox" class="modal" role="document"></div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ========== Data (localStorage) ==========
+    let users = JSON.parse(localStorage.getItem('users') || '{}');
+    let currentUser = null;
+    let products = JSON.parse(localStorage.getItem('products') || '[]');
+    let customers = JSON.parse(localStorage.getItem('customers') || '[]');
+    let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+    let invoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+
+    // small helpers
+    const el = id => document.getElementById(id);
+    function uid(prefix='id'){ return prefix + Math.random().toString(36).slice(2,9); }
+    function toast(msg, t=2200){ const s = el('toast'); s.innerText=msg; s.style.display='block'; setTimeout(()=>s.style.display='none',t); }
+    function saveAll(){ localStorage.setItem('products', JSON.stringify(products)); localStorage.setItem('customers', JSON.stringify(customers)); localStorage.setItem('sales', JSON.stringify(sales)); localStorage.setItem('invoices', JSON.stringify(invoices)); localStorage.setItem('users', JSON.stringify(users)); }
+    function formatMoney(n){ return '$' + Number(n).toFixed(2); }
+
+    // ========== Auth ==========
+    function registerUser(){
+      const username = el('username').value.trim();
+      const role = el('roleSelect').value;
+      if(!username || !role) return toast('Fill username & role');
+      users[username]= { role }; localStorage.setItem('users', JSON.stringify(users));
+      toast('Registered — press Login');
+    }
+    function loginUser(){
+      const username = el('username').value.trim();
+      if(!users[username]) return toast('User not found — register or seed demo');
+      currentUser = username;
+      el('userWelcome').innerText = `Welcome, ${username}`;
+      el('userRole').innerText = users[username].role || 'Staff';
+      el('userChip').innerText = `${username} • ${users[username].role}`;
+      // show app
+      document.getElementById('loginSection').style.display = 'none';
+      showTab(null,'dashboard');
+      refreshAll();
+      toast('Logged in');
+    }
+    function logout(){
+      currentUser = null;
+      el('userWelcome').innerText = 'Welcome';
+      el('userRole').innerText = 'Not logged';
+      el('userChip').innerText = 'Guest';
+      document.getElementById('loginSection').style.display = '';
+      // hide other sections
+      ['dashboard','products','sales','customers','invoices','reports','settings'].forEach(id => el(id).style.display='none');
+      toast('Logged out');
+    }
+
+    // ========== Navigation ==========
+    function showTab(e, tab){
+      if(e) e.preventDefault();
+      document.querySelectorAll('nav.nav a').forEach(a=>a.classList.remove('active'));
+      const link = Array.from(document.querySelectorAll('nav.nav a')).find(a=>a.dataset.tab===tab);
+      if(link) link.classList.add('active');
+      ['dashboard','products','sales','customers','invoices','reports','settings'].forEach(id => el(id).style.display='none');
+      el(tab).style.display = (tab === 'dashboard' && !currentUser) ? '' : '';
+      el(tab).style.display = '';
+      // refresh view
+      refreshAll();
+    }
+
+    // ========== Modal handling ==========
+    function openModal(key, data){
+      const mb = el('modalBackdrop'); const box = el('modalBox'); box.innerHTML = '';
+      if(key === 'productAdd'){
+        box.innerHTML = `
+          <h3>Add Product</h3>
+          <label>Name</label><input id="m_p_name" type="text">
+          <label>Price</label><input id="m_p_price" type="number" step="0.01">
+          <label>Stock</label><input id="m_p_stock" type="number">
+          <label>Category</label><input id="m_p_cat" type="text">
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button class="btn secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn" onclick="addProductFromModal()">Add</button>
+          </div>`;
+      } else if(key === 'productEdit'){
+        const p = data;
+        box.innerHTML = `
+          <h3>Edit Product</h3>
+          <label>Name</label><input id="m_e_name" type="text" value="${p.name}">
+          <label>Price</label><input id="m_e_price" type="number" step="0.01" value="${p.price}">
+          <label>Stock</label><input id="m_e_stock" type="number" value="${p.stock}">
+          <label>Category</label><input id="m_e_cat" type="text" value="${p.category}">
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button class="btn secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn" onclick="saveProductEdit('${p.id}')">Save</button>
+          </div>`;
+      } else if(key === 'customerAdd'){
+        box.innerHTML = `
+          <h3>Add Customer</h3>
+          <label>Name</label><input id="m_c_name" type="text">
+          <label>Contact</label><input id="m_c_contact" type="text">
+          <label>Type</label><select id="m_c_type"><option>Regular</option><option>VIP</option></select>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button class="btn secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn" onclick="addCustomerFromModal()">Add</button>
+          </div>`;
+      } else if(key === 'invoiceCreate'){
+        const productRows = products.map(p=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><div style="flex:1">${p.name} <small style="color:#6b7280">(${p.stock})</small></div><input type="number" id="inv_qty_${p.id}" min="0" max="${p.stock}" placeholder="Qty" style="width:90px;padding:6px;border-radius:6px;border:1px solid #e6e9ef"></div>`).join('') || '<div class="small">No products available</div>';
+        box.innerHTML = `
+          <h3>Create Invoice</h3>
+          <label>Customer</label>
+          <select id="m_inv_customer">${customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+          <div style="margin-top:12px">${productRows}</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button class="btn secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn" onclick="createInvoiceFromModal()">Generate</button>
+          </div>`;
+      } else if(key === 'saleQuick'){
+        box.innerHTML = `
+          <h3>Quick Add Product</h3>
+          <label>Name</label><input id="m_q_name" type="text">
+          <label>Price</label><input id="m_q_price" type="number" step="0.01">
+          <label>Stock</label><input id="m_q_stock" type="number">
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button class="btn secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn" onclick="quickAddProduct()">Add</button>
+          </div>`;
+      } else {
+        box.innerHTML = `<div class="small">Unknown modal</div>`;
+      }
+      mb.style.display = 'flex';
+    }
+    function closeModal(){ el('modalBackdrop').style.display = 'none'; el('modalBox').innerHTML = ''; }
+
+    // close on click outside
+    el('modalBackdrop').addEventListener('click', (e)=>{ if(e.target === el('modalBackdrop')) closeModal(); });
+    window.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeModal(); });
+
+    // ========== Products CRUD ==========
+    function addProductFromModal(){
+      const name = el('m_p_name').value.trim();
+      const price = parseFloat(el('m_p_price').value) || 0;
+      const stock = parseInt(el('m_p_stock').value) || 0;
+      const category = el('m_p_cat').value.trim() || 'Other';
+      if(!name) return toast('Product name required');
+      if(products.some(p=>p.name.toLowerCase()===name.toLowerCase())) return toast('Product exists');
+      products.push({ id: uid('p'), name, price, stock, category });
+      saveAll(); closeModal(); renderProducts(); refreshAll(); toast('Product added');
+    }
+    function renderProducts(){
+      const tbody = el('productsTable'); const q = (el('productSearch')?.value||'').toLowerCase();
+      tbody.innerHTML = '';
+      const list = products.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+      if(list.length === 0){ el('productsEmpty').style.display='block'; return } else el('productsEmpty').style.display='none';
+      list.forEach(p=>{
+        tbody.innerHTML += `<tr>
+          <td style="max-width:240px"><strong>${escapeHtml(p.name)}</strong></td>
+          <td>${formatMoney(p.price)}</td>
+          <td>${p.stock}</td>
+          <td>${escapeHtml(p.category)}</td>
+          <td>
+            <button class="btn secondary" onclick='openModal("productEdit", ${JSON.stringify(p)})'>Edit</button>
+            <button class="btn danger" onclick='deleteProduct("${p.id}")'>Delete</button>
+          </td>
+        </tr>`;
+      });
+      fillDropdowns();
+    }
+    function saveProductEdit(id){
+      const p = products.find(x=>x.id===id);
+      if(!p) return toast('Product not found');
+      p.name = el('m_e_name').value.trim(); p.price = parseFloat(el('m_e_price').value)||0; p.stock = parseInt(el('m_e_stock').value)||0; p.category = el('m_e_cat').value.trim()||'Other';
+      saveAll(); closeModal(); renderProducts(); refreshAll(); toast('Product updated');
+    }
+    function deleteProduct(id){
+      if(!confirm('Delete product?')) return;
+      products = products.filter(p=>p.id!==id); saveAll(); renderProducts(); refreshAll(); toast('Deleted product');
+    }
+
+    // ========== Customers ==========
+    function addCustomerFromModal(){
+      const name = el('m_c_name').value.trim();
+      const contact = el('m_c_contact').value.trim();
+      const type = el('m_c_type').value || 'Regular';
+      if(!name) return toast('Customer name required');
+      customers.push({ id: uid('c'), name, contact, type });
+      saveAll(); closeModal(); renderCustomers(); refreshAll(); toast('Customer added');
+    }
+    function renderCustomers(){
+      const tbody = el('customersTable'); const q = (el('customerSearch')?.value||'').toLowerCase();
+      tbody.innerHTML = '';
+      const list = customers.filter(c=>c.name.toLowerCase().includes(q) || c.contact.toLowerCase().includes(q));
+      if(list.length===0){ el('customersEmpty').style.display='block'; return } else el('customersEmpty').style.display='none';
+      list.forEach(c=>{
+        tbody.innerHTML += `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.contact)}</td><td>${escapeHtml(c.type||'Regular')}</td><td><button class="btn secondary" onclick='deleteCustomer("${c.id}")'>Delete</button></td></tr>`;
+      });
+    }
+    function deleteCustomer(id){ if(!confirm('Delete customer?')) return; customers = customers.filter(c=>c.id!==id); saveAll(); renderCustomers(); refreshAll(); toast('Customer deleted'); }
+
+    // ========== Sales ==========
+    function fillDropdowns(){
+      const saleProd = el('saleProduct'); saleProd.innerHTML = '<option value="">Select product</option>';
+      products.forEach(p=> saleProd.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)}</option>`);
+      const saleCust = el('saleCustomer'); saleCust.innerHTML = '<option value="">Select customer</option>';
+      customers.forEach(c=> saleCust.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)}</option>`);
+    }
+    function recordSale(){
+      const pid = el('saleProduct').value;
+      const qty = parseInt(el('saleQty').value) || 0;
+      const cid = el('saleCustomer').value;
+      const date = el('saleDate').value || new Date().toLocaleDateString();
+      if(!pid || !qty || !cid) return toast('Fill sale fields');
+      const p = products.find(x=>x.id===pid); if(!p) return toast('Product not found');
+      if(p.stock < qty) return toast('Not enough stock');
+      p.stock -= qty; const total = p.price * qty;
+      const customer = customers.find(c=>c.id===cid); sales.push({ id: uid('s'), productId: p.id, productName: p.name, quantity: qty, customerId: cid, customerName: customer?.name||'Unknown', total, date });
+      saveAll(); renderSales(); renderProducts(); refreshAll(); toast('Sale recorded');
+    }
+    function renderSales(){
+      const tbody = el('salesTable'); const q = (el('saleSearch')?.value||'').toLowerCase();
+      tbody.innerHTML = '';
+      const list = sales.filter(s=> s.productName.toLowerCase().includes(q) || s.customerName.toLowerCase().includes(q));
+      if(list.length===0){ el('salesEmpty').style.display='block'; return } else el('salesEmpty').style.display='none';
+      list.forEach(s=>{
+        tbody.innerHTML += `<tr><td>${escapeHtml(s.productName)}</td><td>${s.quantity}</td><td>${escapeHtml(s.customerName)}</td><td>${formatMoney(s.total)}</td><td>${escapeHtml(s.date)}</td><td><button class="btn secondary" onclick='deleteSale("${s.id}")'>Delete</button></td></tr>`;
+      });
+    }
+    function deleteSale(id){ if(!confirm('Delete sale?')) return; const s = sales.find(x=>x.id===id); if(s){ const p = products.find(x=>x.id===s.productId); if(p) p.stock += s.quantity; } sales = sales.filter(x=>x.id!==id); saveAll(); renderSales(); renderProducts(); refreshAll(); toast('Sale deleted'); }
+
+    // ========== Invoices ==========
+    function createInvoiceFromModal(){
+      const cid = el('m_inv_customer')?.value;
+      if(!cid) return toast('Select customer');
+      const items = [];
+      products.forEach(p => {
+        const qtyEl = el('inv_qty_' + p.id);
+        if(qtyEl){
+          const q = parseInt(qtyEl.value) || 0;
+          if(q > 0 && p.stock >= q){ items.push({ id: p.id, name: p.name, qty: q, total: p.price * q }); p.stock -= q; }
+        }
+      });
+      if(items.length === 0) return toast('Add at least one item');
+      const total = items.reduce((a,b)=>a+b.total,0);
+      const date = new Date().toLocaleDateString();
+      const customer = customers.find(c=>c.id===cid);
+      invoices.push({ id: uid('inv'), customerId: cid, customerName: customer?.name||'Unknown', items, total, date });
+      saveAll(); closeModal(); renderInvoices(); renderProducts(); refreshAll(); toast('Invoice created');
+    }
+    function renderInvoices(){
+      const tbody = el('invoicesTable'); tbody.innerHTML = '';
+      if(invoices.length === 0){ el('invoicesEmpty').style.display='block'; return } else el('invoicesEmpty').style.display='none';
+      invoices.forEach(inv=>{
+        tbody.innerHTML += `<tr><td>${escapeHtml(inv.customerName)}</td><td>${inv.items.map(i=>escapeHtml(i.name)+' x'+i.qty).join(', ')}</td><td>${formatMoney(inv.total)}</td><td>${escapeHtml(inv.date)}</td></tr>`;
+      });
+    }
+    function printAllInvoices(){
+      let html = '<html><head><title>Invoices</title></head><body>';
+      invoices.forEach(inv => {
+        html += `<h3>Invoice — ${escapeHtml(inv.customerName)} (${inv.date})</h3><p>Items: ${inv.items.map(i=>escapeHtml(i.name)+' x'+i.qty+' ('+formatMoney(i.total)+')').join(', ')}</p><p>Total: ${formatMoney(inv.total)}</p><hr/>`;
+      });
+      html += '</body></html>';
+      const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.print();
+    }
+
+    // ========== Charts & Reports ==========
+    let stockChart = null, salesChart = null;
+    function updateCharts(){
+      const stockCtx = el('stockChart'); const salesCtx = el('salesChart');
+      const labels = products.map(p=>p.name);
+      const stockData = products.map(p=>p.stock);
+      if(stockChart) stockChart.destroy();
+      stockChart = new Chart(stockCtx, { type:'bar', data:{ labels, datasets:[{ label:'Stock', data:stockData, backgroundColor: labels.map(()=> 'rgba(37,99,235,0.7)') }]}, options:{responsive:true} });
+
+      const salesLabels = sales.map(s=>s.date);
+      const salesData = sales.map(s=>s.total);
+      if(salesChart) salesChart.destroy();
+      salesChart = new Chart(salesCtx, { type:'line', data:{ labels: salesLabels, datasets:[{ label:'Sales', data:salesData, borderColor: 'rgba(16,185,129,0.9)', fill:false }] }, options:{responsive:true} });
+    }
+
+    // ========== Utilities & Insights ==========
+    function updateDashboard(){
+      const totalSalesVal = sales.reduce((a,b)=>a+b.total,0);
+      el('totalSales').innerText = formatMoney(totalSalesVal);
+      el('totalCustomers').innerText = customers.length;
+      el('totalProducts').innerText = products.reduce((a,b)=>a+b.stock,0);
+      const totalExpenses = 0; // no expenses tracking in this build (can add)
+      el('totalProfit').innerText = formatMoney(totalSalesVal - totalExpenses);
+      // low stock
+      const low = products.filter(p=>p.stock < 5);
+      el('lowStock').innerHTML = low.length ? low.map(p=>`<li>${escapeHtml(p.name)} — ${p.stock}</li>`).join('') : '<li class="small">No low stock</li>';
+      el('aiBox').innerText = low.length ? 'Low stock: ' + low.map(p=>p.name).join(', ') : 'No immediate issues';
+    }
+    function generateInsights(){ updateDashboard(); toast('Insights refreshed'); }
+
+    // ========== Export / Import ==========
+    function exportData(){
+      const data = { products, customers, sales, invoices, users };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'backup.json'; a.click(); URL.revokeObjectURL(url); toast('Exported JSON');
+    }
+    function importData(){
+      const input = document.createElement('input'); input.type='file'; input.accept='.json';
+      input.onchange = e => {
+        const f = e.target.files[0]; const reader = new FileReader();
+        reader.onload = ev => {
+          try{
+            const data = JSON.parse(ev.target.result);
+            products = data.products || []; customers = data.customers || []; sales = data.sales || []; invoices = data.invoices || []; users = data.users || users;
+            saveAll(); refreshAll(); toast('Imported data');
+          }catch(err){ toast('Invalid file'); }
+        };
+        reader.readAsText(f);
+      };
+      input.click();
+    }
+
+    // ========== Misc ==========
+    function refreshAll(){
+      renderProducts(); renderCustomers(); renderSales(); renderInvoices(); updateCharts(); updateDashboard(); fillDropdowns();
+    }
+    function clearAll(){ if(!confirm('Clear all local data?')) return; localStorage.clear(); products=[]; customers=[]; sales=[]; invoices=[]; users={}; saveAll(); refreshAll(); toast('Cleared'); }
+    function seedDemo(){
+      users = { admin: { role:'Admin' } };
+      products = [ { id: uid('p'), name:'Coffee Beans', price:9.99, stock:12, category:'Beverages' }, { id: uid('p'), name:'T-Shirt', price:19.99, stock:6, category:'Clothing' } ];
+      customers = [ { id: uid('c'), name:'Alice', contact:'alice@mail.com', type:'Regular' }, { id: uid('c'), name:'Bob', contact:'bob@mail.com', type:'VIP' } ];
+      sales = [ { id: uid('s'), productId: products[0].id, productName: products[0].name, quantity:2, customerId: customers[0].id, customerName: customers[0].name, total: products[0].price*2, date:new Date().toLocaleDateString() } ];
+      invoices = [];
+      saveAll(); toast('Demo seeded — login with username "admin"'); refreshAll();
+    }
+
+    // ========== Quick add for sale modal ==========
+    function quickAddProduct(){ const name=el('m_q_name').value.trim(); const price=parseFloat(el('m_q_price').value)||0; const stock=parseInt(el('m_q_stock').value)||0; if(!name) return toast('Provide name'); products.push({ id: uid('p'), name, price, stock, category:'Quick' }); saveAll(); closeModal(); renderProducts(); refreshAll(); toast('Quick product added'); }
+
+    // ========== helpers ==========
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+
+    // ========== Global search ==========
+    function performGlobalSearch(){
+      const q = (el('globalSearch').value || '').toLowerCase();
+      if(!q) return toast('Enter search text');
+      const p = products.find(x=>x.name.toLowerCase().includes(q)); if(p){ showTab(null,'products'); el('productSearch').value = p.name; renderProducts(); return; }
+      const c = customers.find(x=>x.name.toLowerCase().includes(q)); if(c){ showTab(null,'customers'); el('customerSearch').value = c.name; renderCustomers(); return; }
+      const s = sales.find(x=>x.productName.toLowerCase().includes(q) || x.customerName.toLowerCase().includes(q)); if(s){ showTab(null,'sales'); el('saleSearch').value = q; renderSales(); return; }
+      toast('No results');
+    }
+
+    // ========== Dark toggle ==========
+    el('toggleDarkBtn').addEventListener('click', ()=>{ document.documentElement.classList.toggle('dark'); el('toggleDarkBtn').innerText = document.documentElement.classList.contains('dark') ? 'Light' : 'Dark'; });
+
+    // ========== Init ==========
+    (function init(){
+      // set sale date default
+      el('saleDate').value = new Date().toISOString().slice(0,10);
+      // if user exists only admin - suggest login
+      localStorage.setItem('users', JSON.stringify(users));
+      // show login initially
+      document.getElementById('loginSection').style.display = '';
+      document.querySelectorAll('#main > section').forEach(s=>{ if(s.id !== 'loginSection') s.style.display = 'none' });
+      // keyboard
+      window.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+      refreshAll();
+    })();
+  </script>
+</body>
+</html>
